@@ -143,6 +143,68 @@
       ${concatStringsSep "\n" (mapAttrsToList convertAttributeToKDL attrs)}
     '';
 
+  # To avoid collision with keys that module authors may need to serialize, the
+  # keys for encoded values can be customized. The grammar for RON can be found
+  # at: https://github.com/ron-rs/ron/blob/master/docs/grammar.md
+  toRON = { newline ? "\n", tab ? "    ", encodingKey ? {
+    prefix = "_prefix";
+    suffix = "_suffix";
+    type = "_type";
+    value = "_value";
+  } }:
+    let
+      inherit (builtins) elem typeOf isAttrs hasAttr any;
+      inherit (lib) boolToString concatStringsSep mapAttrsToList optionalString;
+      inherit (lib.strings) floatToString;
+      encodingKeys = mapAttrsToList (_: v: v) encodingKey;
+      serialize = { indent ? "", enableCollectionDelimiters ? true }:
+        input:
+        let
+          nextIndent = indent + tab;
+          isEncoded = isAttrs input
+            && any (attr: hasAttr attr input) encodingKeys;
+          prefix = input.${encodingKey.prefix} or "";
+          suffix = input.${encodingKey.suffix} or "";
+          type = input.${encodingKey.type} or (typeOf value);
+          value =
+            if isEncoded then input.${encodingKey.value} or null else input;
+          serializedEncodedValue = serialize {
+            inherit indent;
+            enableCollectionDelimiters = false;
+          } value;
+        in prefix + {
+          int = toString value;
+          float = floatToString value;
+          bool = boolToString value;
+          char = "'" + toString value + "'";
+          string = ''"'' + toString value + ''"'';
+          path = ''"'' + toString value + ''"'';
+          null = "";
+          enum = optionalString (serializedEncodedValue != "") "(" +
+            serializedEncodedValue
+            + optionalString (serializedEncodedValue != "") ")";
+          tuple = "(" + serializedEncodedValue + ")";
+          struct = "(" + serializedEncodedValue + ")";
+          set = optionalString enableCollectionDelimiters "{" + lib.pipe value [
+            (mapAttrsToList (k: v:
+              "${nextIndent}${k}: ${serialize { indent = nextIndent; } v}"))
+            (concatStringsSep ("," + newline))
+            (v:
+              optionalString (v != "") newline + v
+              + optionalString (v != "") (newline + indent))
+          ] + optionalString enableCollectionDelimiters "}";
+          list = optionalString enableCollectionDelimiters "["
+            + lib.pipe value [
+              (map (v: "${nextIndent}${serialize { indent = nextIndent; } v}"))
+              (concatStringsSep ("," + newline))
+              (v:
+                optionalString (v != "") newline + v
+                + optionalString (v != "") (newline + indent))
+            ] + optionalString enableCollectionDelimiters "]";
+        }.${type} or (throw ''Cannot convert input of "${type}" to RON'')
+        + suffix;
+    in serialize { };
+
   toSCFG = { }:
     let
       inherit (lib) concatStringsSep mapAttrsToList any;
