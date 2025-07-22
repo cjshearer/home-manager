@@ -146,7 +146,7 @@
   # To avoid collision with keys that module authors may need to serialize, the
   # keys for encoded values can be customized. The grammar for RON can be found
   # at: https://github.com/ron-rs/ron/blob/master/docs/grammar.md
-  toRON = { newline ? "\n", tab ? "    ", encodingKey ? {
+  toRON = { newline ? "\n", tab ? "    ", encodingKeys ? {
     prefix = "_prefix";
     suffix = "_suffix";
     type = "_type";
@@ -156,52 +156,102 @@
       inherit (builtins) elem typeOf isAttrs hasAttr any;
       inherit (lib) boolToString concatStringsSep mapAttrsToList optionalString;
       inherit (lib.strings) floatToString;
-      encodingKeys = mapAttrsToList (_: v: v) encodingKey;
-      serialize = { indent ? "", enableCollectionDelimiters ? true }:
-        input:
-        let
-          nextIndent = indent + tab;
-          isEncoded = isAttrs input
-            && any (attr: hasAttr attr input) encodingKeys;
-          prefix = input.${encodingKey.prefix} or "";
-          suffix = input.${encodingKey.suffix} or "";
-          type = input.${encodingKey.type} or (typeOf value);
-          value =
-            if isEncoded then input.${encodingKey.value} or null else input;
-          serializedEncodedValue = serialize {
-            inherit indent;
-            enableCollectionDelimiters = false;
-          } value;
-        in prefix + {
+
+      delimiter.bool."" = {};
+
+      delimiter.float.f32.close = "f32";
+      delimiter.float.f64.close = "f64";
+      delimiter.float."" = {};
+
+      delimiter.int.i8.close = "i8";
+      delimiter.int.u8.close = "u8";
+      delimiter.int.i16.close = "i16";
+      delimiter.int.u16.close = "u16";
+      delimiter.int.i32.close = "i32";
+      delimiter.int.u32.close = "u32";
+      delimiter.int.i64.close = "i64";
+      delimiter.int.u64.close = "u64";
+      delimiter.int.i128.close = "i128";
+      delimiter.int.u128.close = "u128";
+      delimiter.int.isize.close = "isize";
+      delimiter.int.usize.close = "usize";
+      delimiter.int."" = { };
+
+      delimiter.list.tuple.open = "(";
+      delimiter.list.tuple.close = ")";
+      delimiter.list."".open = "[";
+      delimiter.list."".close = "]";
+
+      delimiter.null."" = {};
+
+      delimiter.path."".open = ''"'';
+      delimiter.path."".close = ''"'';
+
+      delimiter.string.octal.open = "0o";
+      delimiter.string.hex.open = "0x";
+      delimiter.string.char.open = "'";
+      delimiter.string.char.close = "'";
+      delimiter.string.byte.open = "b'";
+      delimiter.string.byte.close = "'";
+      delimiter.string.binary.open = "0b";
+      delimiter.string."".open = ''"'';
+      delimiter.string."".close = ''"'';
+
+      delimiter.set.struct.open = "(";
+      delimiter.set.struct.close = ")";
+      delimiter.set.enum.open = "(";
+      delimiter.set.enum.close = ")";
+      delimiter.set."".open = "{";
+      delimiter.set."".close = "}";
+
+      isEncoded = value:
+        isAttrs value && any (attr: hasAttr attr value)
+        (mapAttrsToList (_: v: v) encodingKeys);
+
+      serializePrimitive = indent: value:
+        {
           int = toString value;
           float = floatToString value;
           bool = boolToString value;
-          char = "'" + toString value + "'";
-          string = ''"'' + toString value + ''"'';
-          path = ''"'' + toString value + ''"'';
+          string = value;
+          path = toString value;
           null = "";
-          enum = optionalString (serializedEncodedValue != "") "(" +
-            serializedEncodedValue
-            + optionalString (serializedEncodedValue != "") ")";
-          tuple = "(" + serializedEncodedValue + ")";
-          struct = "(" + serializedEncodedValue + ")";
-          set = optionalString enableCollectionDelimiters "{" + lib.pipe value [
+          set = lib.pipe value [
             (mapAttrsToList (k: v:
-              "${nextIndent}${k}: ${serialize { indent = nextIndent; } v}"))
+              "${indent + tab}${k}: ${serialize { indent = indent + tab; } v}"))
             (concatStringsSep ("," + newline))
             (v:
               optionalString (v != "") newline + v
               + optionalString (v != "") (newline + indent))
-          ] + optionalString enableCollectionDelimiters "}";
-          list = optionalString enableCollectionDelimiters "["
-            + lib.pipe value [
-              (map (v: "${nextIndent}${serialize { indent = nextIndent; } v}"))
-              (concatStringsSep ("," + newline))
-              (v:
-                optionalString (v != "") newline + v
-                + optionalString (v != "") (newline + indent))
-            ] + optionalString enableCollectionDelimiters "]";
-        }.${type} or (throw ''Cannot convert input of "${type}" to RON'')
+          ];
+          list = lib.pipe value [
+            (map
+              (v: "${indent + tab}${serialize { indent = indent + tab; } v}"))
+            (concatStringsSep ("," + newline))
+            (v:
+              optionalString (v != "") newline + v
+              + optionalString (v != "") (newline + indent))
+          ];
+        }.${typeOf value} or (throw
+          ''Can't serialize "${typeOf value}" to RON'');
+
+      serialize = { indent ? "" }:
+        input:
+        let
+          valueType = typeOf (input.${encodingKeys.value} or input);
+          explicitType = input.${encodingKeys.type} or "";
+          value = if isEncoded input then
+            input.${encodingKeys.value} or null
+          else
+            input;
+          serializedValue = if isEncoded value then
+            if value == null then "" else serialize { inherit indent; } value
+          else
+            serializePrimitive indent value;
+          prefix = input.${encodingKeys.prefix} or "";
+          suffix = input.${encodingKeys.suffix} or "";
+          delimiters = delimiter.${valueType}.${explicitType} or (throw "cannot convert ${valueType} to ${explicitType}" (builtins.trace value ""));
+        in prefix + delimiters.open or "" + serializedValue + delimiters.close or ""
         + suffix;
     in serialize { };
 

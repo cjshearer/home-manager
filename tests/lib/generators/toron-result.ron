@@ -1,15 +1,16 @@
 [
     {
+        binary_signed: -0b10010,
+        binary_unsigned: 0b10010,
+        decimal_signed: -10,
+        decimal_unsigned: 10,
         byte: b'0',
+        float_64: -0.100000f64,
         float_exp: -1.000000e-16,
-        float_frac: .1,
         float_int: 1000,
         float_std: 1000.000000,
-        float_suffix: -.1f64,
         integer: 0,
-        integer_suffix: i8,
-        unsigned_binary: 0b10,
-        unsigned_decimal: 10,
+        integer_32: 8i32,
         unsigned_hexadecimal: 0xFF,
         unsigned_octal: 0o10
     },
@@ -30,10 +31,25 @@ It can contain quotations or backslashes\!"##,
         boolean: true
     },
     {
-        enum_nested: Some(Some("aString")),
-        option_none_explicit: None,
-        option_none_implicit: None,
-        option_some: Some(10)
+        enum_named_map: Some(map: {}),
+        enum_named_struct: Some(struct: ANestedStruct(
+            a: 1
+        ))
+        enum_named: Some(named: "field"),
+        enum_none: None
+        enum_tuple: Some("enum",
+            "values"
+        ),
+        enum_tuple_list: Some([
+            "list",
+            "of",
+            "strings"
+        ]),
+        enum_tuple_string: Some("string"),
+        enum_tuple_tuple: Some((
+            "another",
+            "tuple"
+        ))
     },
     {
         list: [
@@ -43,6 +59,7 @@ It can contain quotations or backslashes\!"##,
         ]
     },
     {
+        ("complex","keys"): "a tuple can also be a key",
         map: {
             a: 1,
             b: 2,
@@ -58,30 +75,17 @@ It can contain quotations or backslashes\!"##,
         )
     },
     {
-        named_struct_explicit: NamedStruct(
+        named_struct: NamedStruct(
             a: 1,
             b: 2,
             c: 3
         ),
-        named_struct_implicit: NamedStruct(
-            a: 1,
-            b: 2,
-            c: 3
-        ),
-        tuple_struct_explicit: TupleStruct(
-            1,
-            2,
-            3
-        ),
-        tuple_struct_implicit: TupleStruct(
+        tuple_struct: TupleStruct(
             1,
             2,
             3
         ),
         unit_struct: (),
         unit_struct_ident: MyUnitStruct
-    },
-    {
-        ("a","tuple"): "can also be a key"
     }
 ]

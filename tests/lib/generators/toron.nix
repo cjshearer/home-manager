@@ -4,37 +4,46 @@
   home.file."toron-result.ron".text = lib.hm.generators.toRON { } [
     # numbers
     {
+      binary_signed = {
+        _prefix = "-";
+        _type = "binary";
+        _value = "10010";
+      };
+      binary_unsigned = {
+        _type = "binary";
+        _value = "10";
+      };
       byte = {
-        _type = "char";
-        _prefix = "b";
+        _type = "byte";
         _value = "0";
       };
+      decimal_signed = -10;
+      decimal_unsigned = 10;
       # TODO: nix adds several trailing zeros to floats, is that an issue?
+      float_64 = {
+        _type = "f64";
+        _value = -0.1;
+      };
       float_exp = {
         _value = -1.0;
         _suffix = "e-16";
       };
-      # while nix supports fractional notation, nix fmt will complain about .1
-      # that said, consumers of RON shouldn't need fractional notation
-      float_frac = { _prefix = ".1"; };
       float_int = 1000;
       # TODO: nix adds several trailing zeros to floats, is that an issue?
       float_std = 1000.0;
-      float_suffix = { _prefix = "-.1f64"; };
       integer = 0;
-      integer_suffix = {
-        _prefix = "i";
+      integer_32 = {
+        _type = "i32";
         _value = 8;
       };
-      unsigned_binary = {
-        _prefix = "0b";
-        _value = 10;
+
+      hexadecimal = {
+        _type = "hex";
+        _value = "FF";
       };
-      unsigned_decimal = 10;
-      unsigned_hexadecimal = { _prefix = "0xFF"; };
       unsigned_octal = {
-        _prefix = "0o";
-        _value = 10;
+        _type = "octal";
+        _value = "10";
       };
     }
     # chars
@@ -71,27 +80,64 @@
     {
       boolean = true;
     }
-    # option/enum
+    # enum
     {
-      enum_nested = {
+      enum_named_map = {
         _type = "enum";
         _prefix = "Some";
         _value = {
-          _type = "enum";
-          _prefix = "Some";
-          _value = "aString";
+          _type = "struct";
+          _value = { map = { }; };
         };
       };
-      option_none_explicit = {
-        _type = "enum";
-        _prefix = "None";
-        _value = null;
-      };
-      option_none_implicit = { _prefix = "None"; };
-      option_some = {
+      enum_named_struct = {
         _type = "enum";
         _prefix = "Some";
-        _value = 10;
+        _value = {
+          _type = "struct";
+          _value = {
+            struct = {
+              _type = "struct";
+              _prefix = "ANestedStruct";
+              _value = { a = 1; };
+            };
+          };
+        };
+      };
+      enum_named = {
+        _type = "enum";
+        _prefix = "Some";
+        _value = {
+          _type = "struct";
+          _value = { named = "field"; };
+        };
+      };
+      enum_none = null;
+      enum_tuple = {
+        _type = "enum";
+        _prefix = "Some";
+        _value = {
+          _type = "tuple";
+          _value = [ "enum" "values" ];
+        };
+      };
+      enum_tuple_string = {
+        _type = "enum";
+        _prefix = "Some";
+        _value = "string";
+      };
+      enum_tuple_list = {
+        _type = "enum";
+        _prefix = "Some";
+        _value = [ "list" "of" "strings" ];
+      };
+      enum_tuple_tuple = {
+        _type = "enum";
+        _prefix = "Some";
+        _value = {
+          _type = "tuple";
+          _value = [ "another" "tuple" ];
+        };
       };
     }
     # list
@@ -100,6 +146,15 @@
     }
     # map
     {
+      ${
+        lib.hm.generators.toRON {
+          newline = "";
+          tab = "";
+        } {
+          _type = "tuple";
+          _value = [ "complex" "keys" ];
+        }
+      } = "a tuple can also be a key";
       map_empty = { };
       map = {
         a = 1;
@@ -116,7 +171,7 @@
     }
     # struct
     {
-      named_struct_explicit = {
+      named_struct = {
         _prefix = "NamedStruct";
         _type = "struct";
         _value = {
@@ -125,20 +180,8 @@
           c = 3;
         };
       };
-      named_struct_implicit = {
-        _prefix = "NamedStruct";
-        _value = {
-          a = 1;
-          b = 2;
-          c = 3;
-        };
-      };
-      tuple_struct_explicit = {
+      tuple_struct = {
         _type = "tuple";
-        _prefix = "TupleStruct";
-        _value = [ 1 2 3 ];
-      };
-      tuple_struct_implicit = {
         _prefix = "TupleStruct";
         _value = [ 1 2 3 ];
       };
@@ -147,18 +190,6 @@
         _value = [ ];
       };
       unit_struct_ident = { _prefix = "MyUnitStruct"; };
-    }
-    # complex keys
-    {
-      ${
-        lib.hm.generators.toRON {
-          newline = "";
-          tab = "";
-        } {
-          _type = "tuple";
-          _value = [ "a" "tuple" ];
-        }
-      } = "can also be a key";
     }
   ];
 
